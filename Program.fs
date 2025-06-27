@@ -1,47 +1,63 @@
-﻿open System
+open System
 
-type Tree =
-    | Node of string * Tree option * Tree option
+type BinaryTree =
     | Empty
+    | Node of string * BinaryTree * BinaryTree
 
 let rec insert tree value =
     match tree with
-    | Empty -> Node(value, None, None)
-    | Node(v, left, right) when value < v -> Node(v, Some(insert (defaultArg left Empty) value), right)
-    | Node(v, left, right) -> Node(v, left, Some(insert (defaultArg right Empty) value))
+    | Empty -> Node(value, Empty, Empty)
+    | Node(v, left, right) when value < v -> Node(v, insert left value, right)
+    | Node(v, left, right) -> Node(v, left, insert right value)
 
 let rec collectNodesWithTwoLeaves tree acc =
     match tree with
-    | Node(value, Some(Node(_, None, None)), Some(Node(_, None, None))) -> 
+    | Node(value, Node(_, Empty, Empty), Node(_, Empty, Empty)) -> 
         value :: acc
     | Node(_, left, right) ->
-        let accWithLeft = Option.fold (fun acc node -> collectNodesWithTwoLeaves node acc) acc left
-        let accWithRight = Option.fold (fun acc node -> collectNodesWithTwoLeaves node acc) accWithLeft right
-        accWithRight
+        let acc = collectNodesWithTwoLeaves left acc
+        collectNodesWithTwoLeaves right acc
     | Empty -> acc
 
-let rec printTree tree indent =
+let rec depth tree =
     match tree with
+    | Empty -> 0
+    | Node(_, left, right) -> 1 + max (depth left) (depth right)
+
+let rec printTree tree lCur tCur level =
+    match tree with
+    | Node(inf, left, right) -> 
+        Console.SetCursorPosition(lCur, tCur)
+        printf "%s" inf  
+        if left <> Empty then 
+            Console.SetCursorPosition(lCur - (5 / level), tCur + 1)
+            printf "/"
+        if right <> Empty then 
+            Console.SetCursorPosition(lCur + (inf.Length + 1), tCur + 1)
+            printf "\\"
+        printTree left (lCur - (12 / level)) (tCur + 2) (level + 1)
+        printTree right (lCur + (12 / level)) (tCur + 2) (level + 1)
     | Empty -> ()
-    | Node(value, left, right) ->
-        printfn "%s%s" indent value
-        let newIndent = indent + "  "
-        left |> Option.iter (fun t -> printTree t newIndent)
-        right |> Option.iter (fun t -> printTree t newIndent)
+
+let rec inputLoop tree =
+    printf "Введите строку (или пустую строку для завершения): "
+    let input = Console.ReadLine()
+    if String.IsNullOrWhiteSpace input then tree
+    else inputLoop (insert tree input)
 
 [<EntryPoint>]
 let main argv =
-    let rec inputLoop tree =
-        printf "Введите строку (или пустую строку для завершения): "
-        let input = Console.ReadLine()
-        if String.IsNullOrWhiteSpace input then tree
-        else inputLoop (insert tree input)
-    
+    Console.Clear()
     let tree = inputLoop Empty
-    printfn "\nИсходное дерево:"
-    printTree tree ""
     
+    printfn "\nИсходное дерево:"
+    let currentPos = Console.CursorTop
+    let x = Console.WindowWidth / 3
+    let y = currentPos + 1
+    printTree tree x y 1
+    Console.SetCursorPosition(0, y + 2 * depth tree + 2)
+
     let nodesWithTwoLeaves = collectNodesWithTwoLeaves tree []
     printfn "\nУзлы с двумя листьями: %A" nodesWithTwoLeaves
     
-    0 
+    0
